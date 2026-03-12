@@ -53,14 +53,14 @@ C_Q = '#e67e22'   # qRef orange
 
 # Dynamic event schedule (matches both simulation files)
 EVENTS = [
-    (25.0,  'flow',  '+30',  230,  '#8e44ad'),
+    (25.0,  'flow',  '+50',  250,  '#8e44ad'),
     (40.0,  'qref',  '300',  None, C_Q),
-    (50.0,  'flow',  '+20',  250,  '#16a085'),
-    (60.0,  'flow',  '-40',  210,  '#d35400'),
+    (50.0,  'flow',  '+50',  300,  '#16a085'),
+    (60.0,  'flow',  '-60',  240,  '#d35400'),
     (75.0,  'qref',  '100',  None, '#c0392b'),
-    (85.0,  'flow',  '-30',  180,  '#7f8c8d'),
+    (85.0,  'flow',  '-50',  190,  '#7f8c8d'),
     (95.0,  'qref',  '700',  None, '#27ae60'),
-    (110.0, 'flow',  '+20',  200,  '#2980b9'),
+    (110.0, 'flow',  '+50',  240,  '#2980b9'),
 ]
 
 # qRef timeline
@@ -319,7 +319,7 @@ style(ax2,'Per-Phase Steady-State RMSE  (±std across 5 runs, skip first 8s each
 
 # Active flows timeline
 flow_t=[0,25,40,50,60,75,85,95,110,120]
-flow_n=[200,230,230,250,210,210,180,180,200,200]
+flow_n=[200,250,250,300,240,240,190,190,240,240]
 ax3.step(flow_t,flow_n,where='post',color='#2c3e50',lw=2.5,label='Active flows')
 ax3.fill_between(flow_t,flow_n,step='post',alpha=0.15,color='#2c3e50')
 for t,etype,val,tot,col in EVENTS:
@@ -327,7 +327,7 @@ for t,etype,val,tot,col in EVENTS:
         ax3.axvline(t,color=col,lw=1.5,ls=':',alpha=0.85)
     else:
         ax3.axvline(t,color=C_Q,lw=1.5,ls='-.',alpha=0.85)
-ax3.set_xlim(0,T_END); ax3.set_ylim(150,280)
+ax3.set_xlim(0,T_END); ax3.set_ylim(170,320)
 ax3.set_ylabel('Active flows',fontsize=9)
 style(ax3,'Active Flow Count Timeline','Time (s)','Active flows')
 ax3.tick_params(axis='x',labelsize=8)

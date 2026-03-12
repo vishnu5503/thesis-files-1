@@ -112,8 +112,8 @@ MPCQueueDisc::MPCQueueDisc ()
     m_Ts      (0.01),
     m_N       (20),
     m_R       (0.1),
-    m_Km      (0.00),
-    m_Wpid    (0.3),
+    m_Km      (0.005),
+    m_Wpid    (0.7),
     m_Kp      (0.30),
     m_Ki      (0.50),
     m_Kd      (0.008),
@@ -126,9 +126,9 @@ MPCQueueDisc::MPCQueueDisc ()
     m_prevError (0.0),
     m_dropProb  (0.0)
 {
-  m_P[0][0] = 100.0;
-  m_P[0][1] = 0.0;  m_P[1][0] = 0.0;  m_P[1][1] = 0.0;
-  m_b       = -0.002;
+  // Full 2×2 covariance matrix for 2-parameter RLS (identifies both a and b)
+  m_P[0][0] = 100.0;  m_P[0][1] = 0.0;
+  m_P[1][0] = 0.0;    m_P[1][1] = 100.0;
 
   m_uv = CreateObject<UniformRandomVariable> ();
 
@@ -231,7 +231,9 @@ MPCQueueDisc::ControlLoop ()
   double e_dot    = (e_norm - m_prevError) / m_Ts;
   m_prevError     = e_norm;
   double u_pid    = m_Kp * e_norm + m_integral + m_Kd * e_dot;
-  double u_hybrid = u_pid;
+
+  // True hybrid: PID for reactive feedback + MPC for predictive feedforward
+  double u_hybrid = m_Wpid * u_pid + (1.0 - m_Wpid) * m_Km * u_mpc;
 
   double dp_raw  = std::max (0.0, std::min (1.0, u_hybrid));
 
@@ -261,18 +263,48 @@ MPCQueueDisc::ControlLoop ()
 void
 MPCQueueDisc::UpdateRLS (double q_now)
 {
-  double phi = m_prevQ;
+  // Regressor: phi = [q[k-1], u[k-1]]^T
+  double phi0 = m_prevQ;
+  double phi1 = m_prevU;
 
-  double K = (m_P[0][0] * phi) /
-             (m_lambda + phi * m_P[0][0] * phi + 1e-9);
+  // Innovation: y[k] - a*q[k-1] - b*u[k-1]
+  double innov = q_now - m_a * phi0 - m_b * phi1;
 
-  double innov = q_now - m_a * phi;
-  m_a += K * innov;
-  m_a  = std::max (0.80, std::min (0.9999, m_a));
+  // P * phi
+  double Pp0 = m_P[0][0] * phi0 + m_P[0][1] * phi1;
+  double Pp1 = m_P[1][0] * phi0 + m_P[1][1] * phi1;
 
-  m_P[0][0] = (1.0 / m_lambda) * (1.0 - K * phi) * m_P[0][0];
-  if (m_P[0][0] < 1e-4)  m_P[0][0] = 1e-4;
-  if (m_P[0][0] > 1e4)   m_P[0][0] = 1e4;
+  // Scalar denominator: lambda + phi^T * P * phi
+  double denom = m_lambda + phi0 * Pp0 + phi1 * Pp1 + 1e-9;
+
+  // Kalman gain vector K = P * phi / denom
+  double K0 = Pp0 / denom;
+  double K1 = Pp1 / denom;
+
+  // Update parameters: [a, b] += K * innovation
+  m_a += K0 * innov;
+  m_b += K1 * innov;
+
+  // Clamp: a in [0.5, 0.9999], b in [-1.0, -0.0001]
+  m_a = std::max (0.5,    std::min (0.9999,  m_a));
+  m_b = std::max (-1.0,   std::min (-0.0001, m_b));
+
+  // Update covariance: P = (1/lambda) * (I - K * phi^T) * P
+  double P00 = m_P[0][0], P01 = m_P[0][1];
+  double P10 = m_P[1][0], P11 = m_P[1][1];
+
+  double IKp00 = 1.0 - K0 * phi0,  IKp01 = -K0 * phi1;
+  double IKp10 = -K1 * phi0,        IKp11 = 1.0 - K1 * phi1;
+
+  double inv_lam = 1.0 / m_lambda;
+  m_P[0][0] = inv_lam * (IKp00 * P00 + IKp01 * P10);
+  m_P[0][1] = inv_lam * (IKp00 * P01 + IKp01 * P11);
+  m_P[1][0] = inv_lam * (IKp10 * P00 + IKp11 * P10);
+  m_P[1][1] = inv_lam * (IKp10 * P01 + IKp11 * P11);
+
+  // Clamp diagonal to prevent numerical blow-up or collapse
+  m_P[0][0] = std::max (1e-4, std::min (1e4, m_P[0][0]));
+  m_P[1][1] = std::max (1e-4, std::min (1e4, m_P[1][1]));
 
   m_prevQ = q_now;
   m_prevU = m_dropProb;
