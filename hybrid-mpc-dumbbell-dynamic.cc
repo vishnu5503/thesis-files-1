@@ -143,7 +143,7 @@ int main (int argc, char *argv[])
 
   NS_LOG_UNCOND ("═══════════════════════════════════════════════════════");
   NS_LOG_UNCOND (" Hybrid MPC+PID+RLS Dynamic  seed=" << seed);
-  NS_LOG_UNCOND (" Kp=0.35  Ki=0.40  Kd=0.012  Horizon=25");
+  NS_LOG_UNCOND (" Kp=0.25  Ki=0.35  Kd=0.010  Horizon=25  MpcGain=0.005  PidWeight=0.7");
   NS_LOG_UNCOND (" Base : " << BASE_BULK << " BulkTCP + " << BASE_WEB
       << " OnOffTCP + " << BASE_UDP << " UDP = " << nBase);
   NS_LOG_UNCOND (" Extra: " << EX_BULK << " BulkTCP + " << EX_WEB
@@ -164,13 +164,15 @@ int main (int argc, char *argv[])
   // ── AQM: Hybrid MPC+PID+RLS (optimised gains) ───────────────────────────
   TrafficControlHelper tch;
   tch.SetRootQueueDisc ("ns3::MPCQueueDisc",
-      "QueueRef",      DoubleValue   (500.0),
-      "Kp",            DoubleValue   (0.35),
-      "Ki",            DoubleValue   (0.40),
-      "Kd",            DoubleValue   (0.012),
-      "Horizon",       UintegerValue (25),
-      "ControlWeight", DoubleValue   (0.1),
-      "MpcGain",       DoubleValue   (0.0));
+      "QueueRef",         DoubleValue   (500.0),
+      "Kp",               DoubleValue   (0.25),
+      "Ki",               DoubleValue   (0.35),
+      "Kd",               DoubleValue   (0.010),
+      "Horizon",          UintegerValue (25),
+      "ControlWeight",    DoubleValue   (0.5),
+      "MpcGain",          DoubleValue   (0.005),
+      "PidWeight",        DoubleValue   (0.7),
+      "ForgettingFactor", DoubleValue   (0.98));
   QueueDiscContainer qdiscs = tch.Install (bnd.Get(0));
   g_qdisc = DynamicCast<MPCQueueDisc> (qdiscs.Get(0));
   NS_ASSERT_MSG (g_qdisc, "DynamicCast to MPCQueueDisc failed");

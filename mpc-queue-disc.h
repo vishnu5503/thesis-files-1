@@ -113,9 +113,9 @@ private:
   double   m_lambda;   // RLS forgetting factor
 
   /* --- RLS state --- */
-  double m_a;          // identified plant pole  (initialised 0.95)
-  double m_b;          // identified plant gain  (initialised -0.002)
-  double m_P[2][2];    // 2x2 RLS covariance matrix
+  double m_a;          // RLS-identified plant pole   (initialised 0.95, clamped to [0.5, 0.9999])
+  double m_b;          // RLS-identified plant gain   (initialised -0.002, clamped to [-1.0, -0.0001])
+  double m_P[2][2];    // 2×2 RLS covariance matrix (tracks uncertainty of [a, b])
   double m_prevQ;      // q[k-1]  — RLS regressor element 0
   double m_prevU;      // u[k-1]  — RLS regressor element 1
 
